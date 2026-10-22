@@ -16,6 +16,57 @@ export function calculateUnitPrice(
   return Math.round(basePrice * areaMultiplier + motorAddon);
 }
 
+export const HARDWARE_OPTIONS = [
+  { id: "white", label: "White", price: 0 },
+  { id: "black", label: "Black", price: 0 },
+  { id: "champagne", label: "Champagne", price: 15 },
+] as const;
+
+const SQ_INCHES_PER_SQUARE_METER = 1550.0031;
+const EXTRA_SQUARE_METER_RATE = 45;
+
+export function parseDimensionInches(value: string): number {
+  const parsed = parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+export function findHardware(hardware?: string) {
+  if (!hardware) return undefined;
+  return HARDWARE_OPTIONS.find((option) => option.id === hardware);
+}
+
+export function hardwareLabel(hardware?: string): string | undefined {
+  return findHardware(hardware)?.label;
+}
+
+export function calculateConfiguredUnitPrice(params: {
+  basePrice: number;
+  widthInches: number;
+  heightInches: number;
+  hardware?: string;
+}): number {
+  let hardwarePrice = 0;
+  if (params.hardware) {
+    const option = findHardware(params.hardware);
+    if (!option) {
+      throw new Error(`Unknown hardware finish: ${params.hardware}`);
+    }
+    hardwarePrice = option.price;
+  }
+
+  if (params.widthInches <= 0 || params.heightInches <= 0) {
+    return params.basePrice + hardwarePrice;
+  }
+
+  const areaInSqMeters =
+    (params.widthInches * params.heightInches) / SQ_INCHES_PER_SQUARE_METER;
+  let displayPrice = params.basePrice;
+  if (areaInSqMeters > 1) {
+    displayPrice += (areaInSqMeters - 1) * EXTRA_SQUARE_METER_RATE;
+  }
+  return Number((displayPrice + hardwarePrice).toFixed(2));
+}
+
 export function createCartItemId(params: {
   slug: string;
   color: string;
@@ -23,8 +74,21 @@ export function createCartItemId(params: {
   height: string;
   motor: string;
   structure?: string;
+  hardware?: string;
+  mountType: "inside" | "outside";
+  roomName?: string;
 }): string {
-  const { slug, color, width, height, motor, structure } = params;
+  const {
+    slug,
+    color,
+    width,
+    height,
+    motor,
+    structure,
+    hardware,
+    mountType,
+    roomName,
+  } = params;
   return [
     slug,
     color,
@@ -32,6 +96,9 @@ export function createCartItemId(params: {
     height || DEFAULT_HEIGHT,
     motor,
     structure ?? "",
+    hardware ?? "",
+    mountType,
+    roomName?.trim() ?? "",
   ].join("::");
 }
 

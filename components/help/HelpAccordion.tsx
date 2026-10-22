@@ -1,4 +1,5 @@
 import Accordion from "@/components/ui/Accordion";
+import { siteConfig } from "@/lib/site";
 
 const helpTopics = [
   {
@@ -33,9 +34,6 @@ const helpTopics = [
             </p>
           </div>
         </div>
-        <div className="flex h-32 items-center justify-center rounded-sm border border-dashed border-border bg-beige/50 text-xs text-stone">
-          Measurement diagram placeholder
-        </div>
       </div>
     ),
   },
@@ -45,7 +43,7 @@ const helpTopics = [
     content: (
       <div className="space-y-3">
         <p>
-          Every Lumière order is handcrafted to your specifications. Production
+          Every {siteConfig.brandName} order is handcrafted to your specifications. Production
           typically requires 10–14 business days before shipment. Complimentary
           standard shipping is available on orders over $500 within the
           contiguous United States.
@@ -75,9 +73,6 @@ const helpTopics = [
           <li>Secure brackets with provided fasteners</li>
           <li>Install the shade and test full raise/lower operation</li>
         </ol>
-        <div className="flex h-32 items-center justify-center rounded-sm border border-dashed border-border bg-beige/50 text-xs text-stone">
-          Installation video placeholder
-        </div>
         <p className="text-xs">
           Professional installation is available in select metropolitan areas.
           Contact our support team for scheduling and pricing.
@@ -107,9 +102,18 @@ const helpTopics = [
         </p>
         <p className="text-xs">
           Questions? Email{" "}
-          <span className="font-medium text-charcoal">support@lumiere.com</span>{" "}
-          or call{" "}
-          <span className="font-medium text-charcoal">1-800-LUMIERE</span>.
+          <span className="font-medium text-charcoal">{siteConfig.supportEmail}</span>{siteConfig.supportPhone ? (
+            <>
+              {" "}
+              or call{" "}
+              <span className="font-medium text-charcoal">
+                {siteConfig.supportPhone}
+              </span>
+              .
+            </>
+          ) : (
+            "."
+          )}
         </p>
       </div>
     ),

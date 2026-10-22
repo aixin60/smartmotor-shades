@@ -3,7 +3,7 @@ import CartView from "@/components/cart/CartView";
 export default function CartPage() {
   return (
     <div className="mx-auto max-w-7xl px-6 py-10 lg:px-8 lg:py-14">
-      <div className="mb-10">
+      <div className="mb-10 print:hidden">
         <h1 className="font-serif text-3xl font-medium text-charcoal">
           Shopping Cart
         </h1>

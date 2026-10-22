@@ -19,7 +19,10 @@ export interface CartItem {
   width: string;
   height: string;
   structure?: string;
+  hardware?: string;
   motor: string;
+  mountType: "inside" | "outside";
+  roomName?: string;
   price: number;
   quantity: number;
   imageColor: string;
@@ -34,10 +37,14 @@ export interface SavedItem {
   width: string;
   height: string;
   structure?: string;
+  hardware?: string;
   motor: string;
+  mountType: "inside" | "outside";
   price: number;
   quantity: number;
   imageColor: string;
+  roomName?: string;
+  factoryCost?: number;
 }
 
 export type AddToCartInput = Omit<CartItem, "id" | "quantity"> & {
@@ -55,18 +62,26 @@ interface CartContextValue {
   saveForLater: (id: string) => void;
   moveToCart: (id: string) => void;
   removeFromSaved: (id: string) => void;
+  clearCart: () => void;
 }
 
 const CartContext = createContext<CartContextValue | null>(null);
 
-const CART_STORAGE_KEY = "lumiere-cart";
-const SAVED_STORAGE_KEY = "lumiere-saved";
+const CART_STORAGE_KEY = "smartmotorshades-cart";
+const SAVED_STORAGE_KEY = "smartmotorshades-saved";
+const LEGACY_CART_STORAGE_KEY = "lumiere-cart";
+const LEGACY_SAVED_STORAGE_KEY = "lumiere-saved";
 
-function loadFromStorage<T>(key: string): T[] {
+function loadFromStorage<T>(key: string, legacyKey: string): T[] {
   if (typeof window === "undefined") return [];
   try {
     const stored = localStorage.getItem(key);
-    return stored ? (JSON.parse(stored) as T[]) : [];
+    if (stored) return JSON.parse(stored) as T[];
+    const legacy = localStorage.getItem(legacyKey);
+    if (!legacy) return [];
+    localStorage.setItem(key, legacy);
+    localStorage.removeItem(legacyKey);
+    return JSON.parse(legacy) as T[];
   } catch {
     return [];
   }
@@ -88,8 +103,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
-    setCart(loadFromStorage<CartItem>(CART_STORAGE_KEY));
-    setSavedItems(loadFromStorage<SavedItem>(SAVED_STORAGE_KEY));
+    setCart(loadFromStorage<CartItem>(CART_STORAGE_KEY, LEGACY_CART_STORAGE_KEY));
+    setSavedItems(
+      loadFromStorage<SavedItem>(SAVED_STORAGE_KEY, LEGACY_SAVED_STORAGE_KEY)
+    );
     setIsHydrated(true);
   }, []);
 
@@ -116,6 +133,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       height: item.height,
       motor: item.motor,
       structure: item.structure,
+      hardware: item.hardware,
+      mountType: item.mountType,
+      roomName: item.roomName,
     });
     const quantity = item.quantity ?? 1;
 
@@ -187,6 +207,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setSavedItems((prev) => prev.filter((item) => item.id !== id));
   }, []);
 
+  const clearCart = useCallback(() => {
+    setCart([]);
+  }, []);
+
   const value = useMemo(
     () => ({
       cart,
@@ -199,6 +223,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       saveForLater,
       moveToCart,
       removeFromSaved,
+      clearCart,
     }),
     [
       cart,
@@ -211,6 +236,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       saveForLater,
       moveToCart,
       removeFromSaved,
+      clearCart,
     ]
   );
 

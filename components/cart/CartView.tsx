@@ -1,14 +1,23 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { Bookmark, Minus, Plus, ShoppingBag, X } from "lucide-react";
+import { createCheckoutSession } from "@/app/checkout/actions";
 import { useCart } from "@/context/CartContext";
 import type { CartItem, SavedItem } from "@/context/CartContext";
-import { formatDimensions } from "@/lib/cart";
+import { formatDimensions, hardwareLabel } from "@/lib/cart";
+import QuoteSheet from "@/components/print/QuoteSheet";
 import { categoryToSlug, type Category } from "@/lib/products";
 
 function productHref(item: { category: string; slug: string }) {
   return `/collections/${categoryToSlug(item.category as Category)}/${item.slug}`;
+}
+
+function mountLabel(mountType?: string): string | null {
+  if (mountType === "inside") return "Inside Mount";
+  if (mountType === "outside") return "Outside Mount";
+  return null;
 }
 
 function ItemDetails({
@@ -16,16 +25,32 @@ function ItemDetails({
 }: {
   item: Pick<
     CartItem,
-    "name" | "category" | "color" | "width" | "height" | "structure" | "motor"
+    | "name"
+    | "category"
+    | "color"
+    | "width"
+    | "height"
+    | "structure"
+    | "hardware"
+    | "motor"
+    | "mountType"
+    | "roomName"
   >;
 }) {
+  const finish = hardwareLabel(item.hardware);
+  const mount = mountLabel(item.mountType);
+  const room = item.roomName?.trim();
+
   return (
     <div className="mt-1 space-y-0.5 text-xs text-stone">
       <p>{formatDimensions(item.width, item.height)}</p>
       <p>
         {item.color}
+        {finish ? ` · ${finish}` : ""}
         {item.structure ? ` · ${item.structure}` : ""} · {item.motor}
       </p>
+      {mount ? <p>{mount}</p> : null}
+      {room ? <p>Room: {room}</p> : null}
     </div>
   );
 }
@@ -144,6 +169,51 @@ function SavedLineItem({ item }: { item: SavedItem }) {
 
 export default function CartView() {
   const { cart, savedItems, isHydrated } = useCart();
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [specsConfirmedAt, setSpecsConfirmedAt] = useState<string | null>(null);
+
+  async function handleCheckout() {
+    if (cart.length === 0 || isCheckingOut) return;
+    if (!specsConfirmedAt) {
+      setCheckoutError("Confirm your custom measurements before checkout.");
+      return;
+    }
+    setIsCheckingOut(true);
+    setCheckoutError(null);
+
+    try {
+      const result = await createCheckoutSession(
+        cart.map((item) => ({
+          slug: item.slug,
+          name: item.name,
+          category: item.category,
+          color: item.color,
+          width: item.width,
+          height: item.height,
+          structure: item.structure,
+          hardware: item.hardware,
+          motor: item.motor,
+          mountType: item.mountType,
+          roomName: item.roomName,
+          price: item.price,
+          quantity: item.quantity,
+        })),
+        specsConfirmedAt
+      );
+
+      if ("url" in result) {
+        window.location.assign(result.url);
+        return;
+      }
+
+      setCheckoutError(result.error);
+      setIsCheckingOut(false);
+    } catch {
+      setCheckoutError("Unable to start checkout. Please try again.");
+      setIsCheckingOut(false);
+    }
+  }
 
   const subtotal = cart.reduce(
     (sum, item) => sum + item.price * item.quantity,
@@ -185,7 +255,8 @@ export default function CartView() {
   }
 
   return (
-    <div className="space-y-16">
+    <>
+    <div className="space-y-16 print:hidden">
       <div className="grid gap-12 lg:grid-cols-3 lg:gap-16">
         <div className="lg:col-span-2">
           {isCartEmpty ? (
@@ -237,11 +308,49 @@ export default function CartView() {
             </div>
             <button
               type="button"
+              onClick={() => window.print()}
               disabled={isCartEmpty}
-              className="mt-6 w-full rounded-sm bg-charcoal py-3.5 text-sm font-medium uppercase tracking-wider text-cream transition-colors hover:bg-charcoal-light disabled:cursor-not-allowed disabled:opacity-40"
+              className="mt-6 w-full rounded-sm border border-charcoal py-3 text-sm font-medium uppercase tracking-wider text-charcoal transition-colors hover:bg-cream disabled:cursor-not-allowed disabled:opacity-40"
             >
-              Proceed to Checkout
+              Download / Print Quote
             </button>
+            <label className="mt-4 flex gap-3 rounded-sm border-2 border-charcoal bg-cream p-3 text-left">
+              <input
+                type="checkbox"
+                checked={specsConfirmedAt !== null}
+                onChange={(event) => {
+                  setSpecsConfirmedAt(
+                    event.target.checked ? new Date().toISOString() : null
+                  );
+                  setCheckoutError(null);
+                }}
+                className="mt-0.5 h-4 w-4 shrink-0 accent-charcoal"
+              />
+              <span className="text-xs font-medium leading-relaxed text-charcoal">
+                I have double-checked all custom width & height measurements
+                and specifications. I understand that custom-made shades are
+                manufactured to my exact dimensions and cannot be returned or
+                refunded for measurement errors.
+              </span>
+            </label>
+            {!specsConfirmedAt ? (
+              <p className="mt-2 text-xs font-medium text-charcoal">
+                Check the confirmation above before checkout.
+              </p>
+            ) : null}
+            <button
+              type="button"
+              onClick={handleCheckout}
+              disabled={isCartEmpty || isCheckingOut || !specsConfirmedAt}
+              className="mt-4 w-full rounded-sm bg-charcoal py-3.5 text-sm font-medium uppercase tracking-wider text-cream transition-colors hover:bg-charcoal-light disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {isCheckingOut ? "Redirecting…" : "Proceed to Checkout"}
+            </button>
+            {checkoutError ? (
+              <p role="alert" className="mt-3 text-center text-xs text-charcoal">
+                {checkoutError}
+              </p>
+            ) : null}
             <Link
               href="/collections"
               className="mt-4 block text-center text-xs text-stone transition-colors hover:text-charcoal"
@@ -274,5 +383,24 @@ export default function CartView() {
         )}
       </section>
     </div>
+    {cart.length > 0 ? (
+      <QuoteSheet
+        items={cart.map((item) => ({
+          name: item.name,
+          category: item.category,
+          color: item.color,
+          width: item.width,
+          height: item.height,
+          hardware: item.hardware,
+          motor: item.motor,
+          mountType: item.mountType,
+          roomName: item.roomName,
+          quantity: item.quantity,
+          price: item.price,
+        }))}
+        total={subtotal}
+      />
+    ) : null}
+    </>
   );
 }

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Mail, Phone } from "lucide-react";
 import HelpAccordion from "@/components/help/HelpAccordion";
+import { siteConfig } from "@/lib/site";
 
 export default function HelpPage() {
   return (
@@ -31,19 +32,21 @@ export default function HelpPage() {
         </p>
         <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:gap-8">
           <a
-            href="mailto:support@lumiere.com"
+            href={`mailto:${siteConfig.supportEmail}`}
             className="flex items-center gap-2 text-sm text-charcoal transition-colors hover:text-accent"
           >
             <Mail className="h-4 w-4 text-stone" />
-            support@lumiere.com
+            {siteConfig.supportEmail}
           </a>
-          <a
-            href="tel:1-800-LUMIERE"
-            className="flex items-center gap-2 text-sm text-charcoal transition-colors hover:text-accent"
-          >
-            <Phone className="h-4 w-4 text-stone" />
-            1-800-LUMIERE
-          </a>
+          {siteConfig.supportPhone ? (
+            <a
+              href={`tel:${siteConfig.supportPhone}`}
+              className="flex items-center gap-2 text-sm text-charcoal transition-colors hover:text-accent"
+            >
+              <Phone className="h-4 w-4 text-stone" />
+              {siteConfig.supportPhone}
+            </a>
+          ) : null}
         </div>
         <Link
           href="/collections"

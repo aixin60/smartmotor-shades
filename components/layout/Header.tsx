@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import CartLink from "@/components/layout/CartLink";
+import { siteConfig } from "@/lib/site";
 
 const navLinks: { href: string; label: string; hasDropdown?: boolean }[] = [
   { href: "/", label: "Home" },
@@ -10,16 +11,13 @@ const navLinks: { href: string; label: string; hasDropdown?: boolean }[] = [
 
 export default function Header() {
   return (
-    <header className="sticky top-0 z-50 border-b border-border bg-cream/95 backdrop-blur-sm">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6 lg:px-8">
-        
-        {/* 新的 SmartMotor Logo */}
-        <Link href="/" className="flex items-center text-xl tracking-wide text-charcoal transition-opacity hover:opacity-80">
-          <span className="font-bold">Smart</span>
-          <span className="font-light">Motor</span>
+    <header className="sticky top-0 z-50 border-b border-border bg-cream/95 backdrop-blur-sm print:hidden">
+      <div className="mx-auto grid h-16 max-w-7xl grid-cols-[1fr_auto_1fr] items-center px-6 lg:px-8">
+        <Link href="/" className="justify-self-start text-xl font-medium tracking-wide text-charcoal transition-opacity hover:opacity-80">
+          {siteConfig.brandName}
         </Link>
 
-        <nav className="flex items-center gap-8">
+        <nav className="flex items-center justify-self-center gap-8">
           {navLinks.map((link) => (
             <Link
               key={link.label}
@@ -34,7 +32,9 @@ export default function Header() {
           ))}
         </nav>
 
-        <CartLink />
+        <div className="justify-self-end flex items-center">
+          <CartLink />
+        </div>
       </div>
     </header>
   );

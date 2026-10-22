@@ -1,12 +1,43 @@
 "use client";
 
 import { useState } from "react";
+import { Cable, Cog, Radio } from "lucide-react";
+import { useCart } from "@/context/CartContext";
+import { calculateConfiguredUnitPrice, HARDWARE_OPTIONS } from "@/lib/cart";
 
-const HARDWARE_OPTIONS = [
-  { id: "white", label: "White", price: 0 },
-  { id: "black", label: "Black", price: 0 },
-  { id: "champagne", label: "Champagne", price: 15 },
-];
+const HARDWARE_SWATCH: Record<(typeof HARDWARE_OPTIONS)[number]["id"], string> = {
+  white: "#f6f3ee",
+  black: "#1c1c1c",
+  champagne: "#c6a56a",
+};
+
+const SMART_KIT = [
+  { label: "Smart Motor", Icon: Cog },
+  { label: "Remote", Icon: Radio },
+  { label: "Charge Cable", Icon: Cable },
+] as const;
+
+function InsideMountDiagram() {
+  return (
+    <svg viewBox="0 0 160 120" className="h-full w-full" aria-hidden="true">
+      <rect width="160" height="120" fill="#f7f3ed" />
+      <rect x="28" y="16" width="104" height="88" fill="#e8dfd2" stroke="#2c2824" strokeWidth="8" />
+      <rect x="40" y="28" width="80" height="36" fill="#4a4540" />
+      <line x1="40" y1="64" x2="120" y2="64" stroke="#2c2824" strokeWidth="2" />
+    </svg>
+  );
+}
+
+function OutsideMountDiagram() {
+  return (
+    <svg viewBox="0 0 160 120" className="h-full w-full" aria-hidden="true">
+      <rect width="160" height="120" fill="#f7f3ed" />
+      <rect x="40" y="28" width="80" height="72" fill="#e8dfd2" stroke="#2c2824" strokeWidth="4" />
+      <rect x="22" y="12" width="116" height="42" fill="#4a4540" />
+      <line x1="22" y1="54" x2="138" y2="54" stroke="#2c2824" strokeWidth="2" />
+    </svg>
+  );
+}
 
 interface ProductConfiguratorProps {
   slug: string;
@@ -17,9 +48,14 @@ interface ProductConfiguratorProps {
 }
 
 export default function ProductConfigurator({
+  slug,
+  category,
   productName,
   basePrice,
 }: ProductConfiguratorProps) {
+  // 引入购物车 Hook
+  const { addToCart } = useCart();
+
   const [selectedColor, setSelectedColor] = useState("linen");
   const [mountType, setMountType] = useState<"inside" | "outside" | null>(null);
   
@@ -35,12 +71,69 @@ export default function ProductConfigurator({
   // 控制测量指南弹窗的状态
   const [isMeasureModalOpen, setIsMeasureModalOpen] = useState(false);
 
-  const currentHardwarePrice = HARDWARE_OPTIONS.find((h) => h.id === selectedHardware)?.price || 0;
-  const totalPrice = basePrice + currentHardwarePrice; // 电机已标配，不再额外加钱
+  // 精准解析分数英寸 (例如将 "1/2" 转换为 0.5)
+  const parseFraction = (fractionStr: string) => {
+    if (!fractionStr || fractionStr === "0") return 0;
+    const parts = fractionStr.split("/");
+    if (parts.length === 2) {
+      return parseInt(parts[0], 10) / parseInt(parts[1], 10);
+    }
+    return 0;
+  };
+
+  const totalWidthNum = (parseFloat(width) || 0) + parseFraction(widthFraction);
+  const totalHeightNum = (parseFloat(height) || 0) + parseFraction(heightFraction);
+
+  const totalPrice = calculateConfiguredUnitPrice({
+    basePrice,
+    widthInches: totalWidthNum,
+    heightInches: totalHeightNum,
+    hardware: selectedHardware,
+  });
+
+  let factoryCost = 0;
+
+  if (totalWidthNum > 0 && totalHeightNum > 0) {
+    const areaInSqMeters = (totalWidthNum * totalHeightNum) / 1550.0031;
+    const billableArea = Math.max(areaInSqMeters, 1);
+    factoryCost = Number(((billableArea * 25.21) + 51.43).toFixed(2));
+  }
+
+  // === 加入购物车交互逻辑 ===
+  const handleAddToCart = () => {
+    if (totalWidthNum <= 0 || totalHeightNum <= 0) {
+      alert("❌ 请输入有效的宽度和高度！(Please enter valid width and height measurements.)");
+      return;
+    }
+    if (!mountType) {
+      alert("❌ 请选择安装方式（Inside Mount 或 Outside Mount）！");
+      return;
+    }
+
+    try {
+      addToCart({
+        slug,
+        category,
+        name: productName,
+        color: selectedColor,
+        width: `${totalWidthNum}"`,
+        height: `${totalHeightNum}"`,
+        price: totalPrice,
+        imageColor: selectedColor,
+        hardware: selectedHardware,
+        motor: "Smart Motor", // 必填项防止报错
+        mountType,
+        roomName,
+      });
+      alert("🎉 成功加入购物车！(Successfully added to cart!)");
+    } catch (error) {
+      console.error("Add to cart error:", error);
+      alert("加入购物车失败，请重试或检查控制台。");
+    }
+  };
 
   return (
     <div className="flex flex-col relative">
-      {/* --- 测量指南弹窗 (包含更大的图片占位) --- */}
       {isMeasureModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-charcoal/40 p-4 backdrop-blur-sm">
           <div className="w-full max-w-4xl rounded-md bg-white p-6 shadow-xl">
@@ -55,10 +148,9 @@ export default function ProductConfigurator({
             </div>
             
             <div className="grid grid-cols-1 gap-12 md:grid-cols-2">
-              {/* Inside Mount 图示 */}
               <div className="flex flex-col">
-                <div className="mb-4 flex aspect-[4/3] w-full items-center justify-center rounded-md bg-cream-dark border-2 border-dashed border-border">
-                  <span className="text-charcoal-light font-medium">Inside Mount Image Placeholder</span>
+                <div className="mb-4 aspect-[4/3] w-full overflow-hidden rounded-md border border-border bg-cream">
+                  <InsideMountDiagram />
                 </div>
                 <h3 className="font-serif text-xl text-charcoal">Inside Mount</h3>
                 <p className="mt-2 text-sm text-charcoal-light leading-relaxed">
@@ -66,10 +158,9 @@ export default function ProductConfigurator({
                 </p>
               </div>
 
-              {/* Outside Mount 图示 */}
               <div className="flex flex-col">
-                <div className="mb-4 flex aspect-[4/3] w-full items-center justify-center rounded-md bg-cream-dark border-2 border-dashed border-border">
-                  <span className="text-charcoal-light font-medium">Outside Mount Image Placeholder</span>
+                <div className="mb-4 aspect-[4/3] w-full overflow-hidden rounded-md border border-border bg-cream">
+                  <OutsideMountDiagram />
                 </div>
                 <h3 className="font-serif text-xl text-charcoal">Outside Mount</h3>
                 <p className="mt-2 text-sm text-charcoal-light leading-relaxed">
@@ -271,10 +362,11 @@ export default function ProductConfigurator({
                     : "border-border bg-white hover:border-charcoal/50"
                 }`}
               >
-                {/* 硬件图片占位区 */}
-                <div className="flex aspect-video w-full items-center justify-center bg-cream text-[10px] text-charcoal-light border-b border-border">
-                  {hw.label} Img
-                </div>
+                <div
+                  className="aspect-video w-full border-b border-border"
+                  style={{ backgroundColor: HARDWARE_SWATCH[hw.id] }}
+                  aria-hidden="true"
+                />
                 <div className="flex w-full items-center justify-between p-3">
                   <span className="text-xs font-medium text-charcoal">{hw.label}</span>
                   {hw.price > 0 && <span className="text-[10px] text-charcoal-light">+${hw.price}</span>}
@@ -292,27 +384,17 @@ export default function ProductConfigurator({
               Every shade comes standard with our Smart Home Motor Kit, including:
             </div>
             <div className="grid grid-cols-3 gap-2">
-              {/* 电机本体占位 */}
-              <div className="flex flex-col items-center">
-                <div className="mb-2 flex aspect-square w-full items-center justify-center rounded bg-cream-dark border border-border">
-                  <span className="text-[10px] text-charcoal-light">Motor</span>
+              {SMART_KIT.map(({ label, Icon }) => (
+                <div
+                  key={label}
+                  className="flex flex-col items-center gap-2 rounded-sm border border-border bg-cream px-2 py-3"
+                >
+                  <Icon className="h-5 w-5 text-charcoal" aria-hidden="true" />
+                  <span className="text-center text-[10px] font-medium text-charcoal">
+                    {label}
+                  </span>
                 </div>
-                <span className="text-[10px] font-medium text-charcoal">Smart Motor</span>
-              </div>
-              {/* 遥控器占位 */}
-              <div className="flex flex-col items-center">
-                <div className="mb-2 flex aspect-square w-full items-center justify-center rounded bg-cream-dark border border-border">
-                  <span className="text-[10px] text-charcoal-light">Remote</span>
-                </div>
-                <span className="text-[10px] font-medium text-charcoal">Remote</span>
-              </div>
-              {/* 充电线占位 */}
-              <div className="flex flex-col items-center">
-                <div className="mb-2 flex aspect-square w-full items-center justify-center rounded bg-cream-dark border border-border">
-                  <span className="text-[10px] text-charcoal-light">Cable</span>
-                </div>
-                <span className="text-[10px] font-medium text-charcoal">Charge Cable</span>
-              </div>
+              ))}
             </div>
             {/* 充电频率说明 */}
             <div className="mt-4 rounded bg-cream-dark p-2 text-center">
@@ -323,7 +405,10 @@ export default function ProductConfigurator({
           </div>
         </div>
 
-        <button className="mt-8 w-full rounded-sm bg-charcoal px-8 py-4 text-sm font-medium tracking-wide text-white transition-colors hover:bg-charcoal/90">
+        <button 
+          onClick={handleAddToCart}
+          className="mt-8 w-full rounded-sm bg-charcoal px-8 py-4 text-sm font-medium tracking-wide text-white transition-colors hover:bg-charcoal/90"
+        >
           ADD TO CART • ${totalPrice.toFixed(2)}
         </button>
       </div>

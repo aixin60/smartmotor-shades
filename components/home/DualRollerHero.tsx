@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { ChevronDown, ChevronUp, Moon, Sun } from "lucide-react";
 
 export default function DualRollerHero() {
@@ -167,11 +168,19 @@ export default function DualRollerHero() {
         </div>
       </div>
 
-      <div className="mt-10 flex items-center gap-2 text-stone">
-        <ChevronDown className="h-4 w-4 animate-bounce" />
-        <span className="text-xs font-medium uppercase tracking-wider">
-          Explore the collection
-        </span>
+      <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row">
+        <Link
+          href="/collections/roller/dual-roller-premium"
+          className="rounded-sm bg-charcoal px-6 py-3 text-sm font-medium tracking-wide text-cream transition-colors hover:bg-charcoal-light"
+        >
+          Shop Dual Roller Shades
+        </Link>
+        <Link
+          href="/collections"
+          className="rounded-sm border border-charcoal px-6 py-3 text-sm font-medium tracking-wide text-charcoal transition-colors hover:bg-charcoal hover:text-cream"
+        >
+          Explore All Collections
+        </Link>
       </div>
     </section>
   );
